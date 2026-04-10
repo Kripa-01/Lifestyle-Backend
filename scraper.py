@@ -1,39 +1,44 @@
-from sqlalchemy.orm import Session
+import requests
+from bs4 import BeautifulSoup
+
 from database import SessionLocal
 from models import Listing
 
-data = [
-    {
-        "title": "Pizza Hut",
-        "description": "Famous pizza restaurant",
-        "category": "restaurant",
-        "city": "Calicut",
-        "rating": 4.2
-    },
-    {
-        "title": "Burger King",
-        "description": "Popular fast food chain",
-        "category": "restaurant",
-        "city": "Calicut",
-        "rating": 4.0
-    }
-]
+def get_rating(tag):
+    classes = tag.get("class", [])
+    ratings = {"One": 1, "Two": 2, "Three": 3, "Four": 4, "Five": 5}
+    for c in classes:
+        if c in ratings:
+            return ratings[c]
+    return 0
 
-# DB session
+url = "https://books.toscrape.com/"
+response = requests.get(url)
+soup = BeautifulSoup(response.text, "html.parser")
+
+books = soup.find_all("article", class_="product_pod")
+
 db = SessionLocal()
 
-for item in data:
+for book in books:
+    title = book.h3.a["title"]
+
+    rating_tag = book.find("p", class_="star-rating")
+    rating = get_rating(rating_tag)
+
+    description = f"{title} is a popular book"
+
     listing = Listing(
-        title=item["title"],
-        description=item["description"],
-        category=item["category"],
-        city=item["city"],
-        rating=item["rating"]
+        title=title,
+        description=description,
+        category="Books",
+        city="Calicut",
+        rating=rating
     )
-    
+
     db.add(listing)
 
 db.commit()
 db.close()
 
-print("Data saved to DB")
+print("Scraped data with rating saved to DB")
